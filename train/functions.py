@@ -23,14 +23,17 @@ def show_image(path):
     return img
 
 def image_from_array(array):
-    img = Image.fromarray(array, 'RGB')
+    img = Image.fromarray(array.astype('uint8'), 'RGB')
     return img
 
-def show_image_predictions(generator):
+def show_image_predictions(generator, ypred_bool, reset = False):
+    if reset:
+        generator.reset()
     for i in range(4):
-        img, labels = generator.next()
-        labels = np.where(labels[0] == 1)[0]
-        classes = list(generator.class_indices)
+        img, labels = test_generator.next()
+        row = test_generator.batch_index
+        labels = np.where(ypred_bool[row] == 1)[0]
+        classes = list(test_generator.class_indices)
         labels = [classes[i] for i in labels]
         plt.subplot(2, 2, i+1)
         plt.imshow(img[0])
@@ -108,3 +111,13 @@ def build_model(config, n_labels):
         ])
     
     return m
+
+def ypred_to_bool(ypred, threshold):
+    ypred_bool = (ypred > threshold).astype(int)
+    return ypred_bool
+
+def f2_score(y_true, y_pred):
+    # fbeta_score throws a confusing error if inputs are not numpy arrays
+    y_true, y_pred, = np.array(y_true), np.array(y_pred)
+    # We need to use average='samples' here, any other average method will generate bogus results
+    return fbeta_score(y_true, y_pred, beta=2, average='samples')

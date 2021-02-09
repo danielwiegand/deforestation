@@ -10,7 +10,7 @@ from tensorflow.python.keras.saving.save import load_model
 from wandb.keras import WandbCallback
 import wandb
 from timeit import default_timer as timer
-from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions
+from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions, ypred_to_bool, f2_score
 
 
 IMAGE_PATH_TRAIN = "../data/images/train-jpg/"
@@ -45,17 +45,6 @@ run = wandb.init(project = "deforestation",
 
 config = wandb.config
 
-
-# ! TODOS
-
-# TODO: Auf Colab laufen lassen
-# TODO: Funktionen erstellen > Übersichtlichkeit
-# TODO: F2 SCORE berechnen
-# TODO: Augmentation (https://machinelearningmastery.com/how-to-configure-image-data-augmentation-when-training-deep-learning-neural-networks/)
-# TODO: Transfer Learning
-# TODO: class_weight ausprobieren (https://www.tensorflow.org/api_docs/python/tf/keras/Model)
-
-
 # * RUN MODEL
 
 train_set, val_set = train_test_split(y_labels[:6000], test_size = 0.2)
@@ -73,6 +62,7 @@ m.compile(optimizer = config.optimizer,
           loss = 'binary_crossentropy', 
           metrics = ["accuracy"])
 
+#! F2 auch per batch auswerten lassen
 
 # * CALLBACKS
 
@@ -102,6 +92,7 @@ history = m.fit_generator(generator = train_generator,
 run.finish()
 
 
+
 # * PREDICT
 
 from tensorflow.keras.models import load_model
@@ -113,25 +104,36 @@ test_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = 1, sh
 
 STEP_SIZE_TEST = test_generator.n//test_generator.batch_size
 
-test_generator.reset() # You need to reset the test_generator before whenever you call the predict_generator. This is important, if you forget to reset the test_generator you will get outputs in a weird order.
+test_generator.reset()
 
-y_pred = m.predict_generator(test_generator,
+ypred = m.predict_generator(test_generator,
                              steps = STEP_SIZE_TEST,
                              verbose = 1)
 
 m.evaluate(test_generator)
 
-y_pred_bool = (y_pred > 0.4).astype(int)
+ypred_bool = ypred_to_bool(ypred, 0.4)
 
-results = pd.DataFrame(y_pred_bool, columns = test_generator.class_indices, index = test_generator.filenames)
-        
-show_image_predictions(test_generator)    
+results = pd.DataFrame(ypred_bool, columns = test_generator.class_indices, index = test_generator.filenames)
+
+ytrue_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = len(test_set), shuffle = False, classes = UNIQUE_LABELS)
+img, ytrue = ytrue_generator.next()
+del img
+
+f2_score(ytrue, ypred_bool)
 
 
-#! aufschreiben
-test_generator.labels
-test_generator.class_indices # ALPHABETISCH!
-test_generator.filenames
+#! anschauen
+# siehe evaluation-klassifikation.md > multi-label klassifikation
+https://stackoverflow.com/questions/50686217/keras-how-is-accuracy-calculated-for-multi-label-classification
+https://stats.stackexchange.com/questions/12702/what-are-the-measure-for-accuracy-of-multilabel-data
+https://towardsdatascience.com/journey-to-the-center-of-multi-label-classification-384c40229bff
+https://scikit-learn.org/stable/modules/model_evaluation.html#multilabel-ranking-metrics
+https://scikit-learn.org/stable/modules/generated/sklearn.metrics.multilabel_confusion_matrix.html#sklearn.metrics.multilabel_confusion_matrix
+
+
+    
+show_image_predictions(test_generator, ypred_bool, False)
 
 
 # * EVALUATE
