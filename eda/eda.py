@@ -24,6 +24,7 @@ for i in range(25):
     plt.axis('off')
 
 # Examine a single image
+img = image.load_img(IMAGE_PATH_TRAIN + random.choice(train_dir))
 img_array = image.img_to_array(img).astype(np.uint8)
 img_array.shape
 

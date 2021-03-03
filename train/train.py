@@ -4,13 +4,14 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_score, classification_report
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras import backend as K
 from tensorflow.python.keras.saving.save import load_model
 from wandb.keras import WandbCallback
 import wandb
 from timeit import default_timer as timer
-from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions, ypred_to_bool, f2_score
+from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions, ypred_to_bool, f2_score, show_multilabel_confusion_matrix, StatefullMultiLabelFBeta, get_labels_from_generator, get_optimal_threshold, plot_precision_recall_allclasses
 
 
 IMAGE_PATH_TRAIN = "../data/images/train-jpg/"
@@ -37,7 +38,7 @@ run = wandb.init(project = "deforestation",
                      "dense_units": "512",
                      "full_data": True,
                      "data_size": None,
-                     "epochs": 10,
+                     "epochs": 2,
                      "early_stop": True,
                      "batch_size": 32,
                      "activation": "elu",
@@ -50,7 +51,8 @@ config = wandb.config
 train_set, val_set = train_test_split(y_labels[:6000], test_size = 0.2)
 
 train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = UNIQUE_LABELS)
-# ? In Zukunft hier evtl. augmentation einfügen. Dann muss für den test_gen aber die Funktion verändert werden (keine augmentation)
+
+# TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den test_gen aber die Funktion verändert werden (keine augmentation)
 
 valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = UNIQUE_LABELS)
 
@@ -58,17 +60,22 @@ m = build_model(config, len(UNIQUE_LABELS))
 
 m.summary()
 
+
+F2Score = StatefullMultiLabelFBeta(n_class = len(UNIQUE_LABELS), 
+                                   beta = 2,
+                                   threshold = 0.4)
+
 m.compile(optimizer = config.optimizer, 
           loss = 'binary_crossentropy', 
-          metrics = ["accuracy"])
+          metrics = [F2Score, "AUC"])
 
-#! F2 auch per batch auswerten lassen
 
 # * CALLBACKS
 
 early_stopping = EarlyStopping(monitor = "val_loss", 
                                patience = 10
                                )
+
 checkpoint = ModelCheckpoint(f'models/{wandb.run.name}.hdf5', 
                              monitor = "val_loss",
                              verbose = 1, 
@@ -93,60 +100,111 @@ run.finish()
 
 
 
-# * PREDICT
+# * EVALUATE
 
+# m.save("models/6000-10epochs")
 from tensorflow.keras.models import load_model
 m = load_model("models/6000-10epochs")
 
-test_set = y_labels[6000:7000]
-
-test_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = UNIQUE_LABELS)
-
-STEP_SIZE_TEST = test_generator.n//test_generator.batch_size
-
-test_generator.reset()
-
-ypred = m.predict_generator(test_generator,
-                             steps = STEP_SIZE_TEST,
-                             verbose = 1)
-
-m.evaluate(test_generator)
-
-ypred_bool = ypred_to_bool(ypred, 0.4)
-
-results = pd.DataFrame(ypred_bool, columns = test_generator.class_indices, index = test_generator.filenames)
-
-ytrue_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = len(test_set), shuffle = False, classes = UNIQUE_LABELS)
-img, ytrue = ytrue_generator.next()
-del img
-
-f2_score(ytrue, ypred_bool)
-
-
-#! anschauen
-# siehe evaluation-klassifikation.md > multi-label klassifikation
-https://stackoverflow.com/questions/50686217/keras-how-is-accuracy-calculated-for-multi-label-classification
-https://stats.stackexchange.com/questions/12702/what-are-the-measure-for-accuracy-of-multilabel-data
-https://towardsdatascience.com/journey-to-the-center-of-multi-label-classification-384c40229bff
-https://scikit-learn.org/stable/modules/model_evaluation.html#multilabel-ranking-metrics
-https://scikit-learn.org/stable/modules/generated/sklearn.metrics.multilabel_confusion_matrix.html#sklearn.metrics.multilabel_confusion_matrix
-
-
-    
-show_image_predictions(test_generator, ypred_bool, False)
-
-
-# * EVALUATE
-
-m.save("models/6000-10epochs")
-
 m.evaluate(train_generator)
-m.evaluate(valid_generator)
+m.evaluate(valid_generator) # TODO: andere metrik?
 
+
+# TODO geht das mit F2?
 plt.plot(history.history['loss'], label='training_loss')
 plt.plot(history.history['val_loss'], label='validation_loss')
 plt.legend()
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
+
+
+# TODO beste threshold?
+
+
+
+# Get y_train
+y_train = get_labels_from_generator(train_generator)
+
+# Get y_pred
+y_pred = m.predict_generator(train_generator,
+                             steps = STEP_SIZE_TRAIN,
+                             verbose = 1)
+
+# Thresholding
+best_threshold = get_optimal_threshold(y_train, y_pred) #! mit validation set machen!
+
+y_pred_bool = ypred_to_bool(y_pred, 0.4) # TODO mit best threshold
+
+
+# precision / recall
+
+precision_score(y_train, y_pred_bool, average = "macro")
+# macro: Calculate metrics for each label, and find their unweighted mean. This does not take label imbalance into account.
+# micro: Calculate metrics globally by counting the total true positives, false negatives and false positives.
+
+precision, recall = plot_precision_recall_allclasses(y_train, y_pred, UNIQUE_LABELS)
+
+print(classification_report(y_train, y_pred_bool, target_names = sorted(UNIQUE_LABELS)))
+
+# F2 Score
+f2_score(y_train, y_pred_bool)
+
+# confusion matrix
+show_multilabel_confusion_matrix(y_train, y_pred_bool, UNIQUE_LABELS)
+
+# Show some predictions
+show_image_predictions(train_generator, y_pred_bool, False)
+
+
+
+# * PREDICT
+
+# test_set = y_labels[6000:7000]
+
+# # Evaluate
+
+# test_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = UNIQUE_LABELS)
+
+# m.evaluate(test_generator) # TODO: andere metrik?
+
+# # Generate ypreds
+
+# STEP_SIZE_TEST = test_generator.n // test_generator.batch_size
+
+# test_generator.reset()
+
+# ypred = m.predict_generator(test_generator,
+#                             steps = STEP_SIZE_TEST,
+#                             verbose = 1)
+
+
+# ypred_bool = ypred_to_bool(ypred, 0.4)
+
+# results = pd.DataFrame(ypred_bool, columns = test_generator.class_indices, index = test_generator.filenames)
+
+# # Generate ytrues
+# # TODO ersetzen durch get_labels_from_generator()?
+# ytrue_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = len(test_set), shuffle = False, classes = UNIQUE_LABELS)
+# img, ytrue = ytrue_generator.next()
+# del img
+
+# # Score
+
+# f2_score(ytrue, ypred_bool)
+
+
+# # confusion matrix
+# show_multilabel_confusion_matrix(ytrue, ypred_bool, UNIQUE_LABELS)
+   
+# # Show some predictions
+# show_image_predictions(test_generator, ypred_bool, False)
+
+# # predision / recall
+# from sklearn.metrics import precision_score
+# precision_score(ytrue, ypred_bool, average = "macro")
+
+# from sklearn.metrics import classification_report
+# print(classification_report(ytrue, ypred_bool, target_names = sorted(UNIQUE_LABELS)))
+
 
