@@ -357,7 +357,7 @@ def format_for_submission(df):
     return out
 
 
-def predict_on_testset(model, classes):
+def predict_on_testset(model, classes, threshold):
     
     test_datagen = ImageDataGenerator(rescale = 1./255)
 
@@ -372,7 +372,7 @@ def predict_on_testset(model, classes):
 
     y_test_pred = model.predict(test_generator, verbose = 1)
 
-    y_test_pred_bool = ypred_to_bool(y_test_pred, best_threshold)
+    y_test_pred_bool = ypred_to_bool(y_test_pred, threshold)
 
     filenames = [re.findall(r"\/(.+).jpg", filename)[0] for filename in test_generator.filenames]
 
@@ -460,4 +460,4 @@ def evaluate_model(m, history, train_generator, valid_generator, labels):
     show_image_predictions(valid_generator, y_val_pred_bool, False)
     
     
-    return y_train, y_train_pred, y_val, y_val_pred
+    return y_train, y_train_pred, y_val, y_val_pred, best_threshold

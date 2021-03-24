@@ -66,14 +66,14 @@ run.finish()
 # from tensorflow.keras.models import load_model
 # m = load_model("models/6000-10epochs")
 
-y_train, y_train_pred, y_val, y_val_pred = evaluate_model(m, history, train_generator, valid_generator, UNIQUE_LABELS)
+y_train, y_train_pred, y_val, y_val_pred, best_threshold = evaluate_model(m, history, train_generator, valid_generator, UNIQUE_LABELS)
 
 
 # * PREDICT
 
 # Evaluate
 
-submission = predict_on_testset(model = m, classes = train_generator.class_indices)
+submission = predict_on_testset(model = m, classes = train_generator.class_indices, threshold = best_threshold)
 
 # submission.to_csv("./submissions/submission.csv")
 
