@@ -4,7 +4,7 @@ This is the code for a submission to the Kaggle challenge "Planet: Understanding
 
 ## Implementation
 
-Packages:
+Tech stack:
 * Python
 * Keras
 
@@ -13,6 +13,10 @@ Algorithms used:
 * Transfer learning
 
 ## How to use this repository
+
+... to come
+
+## Data
 
 ... to come
 
