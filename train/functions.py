@@ -1,25 +1,22 @@
-import os
-import random
+import re
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, fbeta_score, classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import multilabel_confusion_matrix, precision_recall_curve, average_precision_score, precision_score
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D, Dense, Dropout, Flatten, MaxPooling2D)
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from PIL import Image
+from sklearn.metrics import (average_precision_score, classification_report,
+                             fbeta_score, multilabel_confusion_matrix,
+                             precision_recall_curve, precision_score)
 from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
+                                     Dense, Dropout, Flatten, MaxPooling2D)
+from tensorflow.keras.metrics import Metric
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.preprocessing.image import (ImageDataGenerator,
                                                   img_to_array, load_img)
-from tensorflow.keras.metrics import Metric
-import tensorflow as tf
 from tqdm import tqdm
-from PIL import Image
-from timeit import default_timer as timer
-
 
 # * CONSTANTS
 
