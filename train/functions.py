@@ -6,10 +6,11 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, fbeta_score, classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import multilabel_confusion_matrix, precision_recall_curve, average_precision_score
+from sklearn.metrics import multilabel_confusion_matrix, precision_recall_curve, average_precision_score, precision_score
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D, Dense, Dropout, Flatten, MaxPooling2D)
 from tensorflow.keras.models import Sequential
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras import backend as K
 from tensorflow.keras.preprocessing.image import (ImageDataGenerator,
                                                   img_to_array, load_img)
@@ -18,6 +19,12 @@ import tensorflow as tf
 from tqdm import tqdm
 from PIL import Image
 from timeit import default_timer as timer
+
+
+# * CONSTANTS
+
+IMAGE_PATH_TRAIN = "../data/images/train-jpg/"
+IMAGE_PATH_TEST = "../data/images/test-jpg/"
 
 
 # * FUNCTIONS
@@ -117,20 +124,20 @@ def build_cnn(config, n_labels):
     return m
 
 
-def create_model(train_set, val_set, config):
+def create_model(train_set, val_set, config, labels):
     
-    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = UNIQUE_LABELS)
+    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels)
 
     # TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den val_gen aber die Funktion verändert werden (keine augmentation)
 
-    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = True, classes = UNIQUE_LABELS) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
+    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = True, classes = labels) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
 
-    m = build_cnn(config, len(UNIQUE_LABELS))
+    m = build_cnn(config, len(labels))
 
     m.summary()
 
 
-    F2Score = StatefullMultiLabelFBeta(n_class = len(UNIQUE_LABELS), 
+    F2Score = MultiLabelFBeta(n_class = len(labels), 
                                     beta = 2,
                                     threshold = 0.4)
 
@@ -141,13 +148,13 @@ def create_model(train_set, val_set, config):
     return m, train_generator, valid_generator
 
 
-def create_callbacks():
+def create_callbacks(model_name):
 
     early_stopping = EarlyStopping(monitor = "val_loss", 
                                    patience = 10
                                    )
 
-    checkpoint = ModelCheckpoint(f'models/{wandb.run.name}.hdf5', 
+    checkpoint = ModelCheckpoint(f'models/{model_name}.hdf5', 
                                  monitor = "val_loss",
                                  verbose = 1, 
                                  save_best_only = True, 
@@ -217,12 +224,12 @@ def plot_precision_recall_allclasses(y_train, y_pred, labels):
         
     return precision, recall
             
-class StatefullMultiLabelFBeta(Metric):
+class MultiLabelFBeta(Metric):
     """ From https://towardsdatascience.com/f-beta-score-in-keras-part-iii-28b1721fc442 """
-    def __init__(self, n_class, beta, threshold, average = 'samples', epsilon = 1e-7, name = 'state_full_binary_fbeta', **kwargs):
+    def __init__(self, n_class, beta, threshold, average = 'samples', epsilon = 1e-7, name = 'binary_fbeta', **kwargs):
         
         # initializing an object of the super class
-        super(StatefullMultiLabelFBeta, self).__init__(name=name, **kwargs)
+        super(MultiLabelFBeta, self).__init__(name=name, **kwargs)
             
         # initializing atrributes
         self.tp = self.add_weight(name='tp', shape=(n_class,), initializer='zeros') # initializing true positives
@@ -378,7 +385,7 @@ def predict_on_testset(model, classes):
     return submission
 
 
-def evaluate_model(m, history, train_generator, valid_generator):
+def evaluate_model(m, history, train_generator, valid_generator, labels):
 
     # FBeta / AUC
     print("Evaluating on training data...")
@@ -394,8 +401,8 @@ def evaluate_model(m, history, train_generator, valid_generator):
     plt.plot(history.history['val_loss'], label = 'validation_loss')
     plt.legend()
 
-    plt.plot(history.history['state_full_binary_fbeta'], label = "training_fbeta")
-    plt.plot(history.history['val_state_full_binary_fbeta'], label = "validation_fbeta")
+    plt.plot(history.history['binary_fbeta'], label = "training_fbeta")
+    plt.plot(history.history['val_binary_fbeta'], label = "validation_fbeta")
     plt.legend()
 
     plt.plot(history.history['auc'], label = "training_auc")
@@ -436,9 +443,9 @@ def evaluate_model(m, history, train_generator, valid_generator):
     # macro: Calculate metrics for each label, and find their unweighted mean. This does not take label imbalance into account.
     # micro: Calculate metrics globally by counting the total true positives, false negatives and false positives.
 
-    precision, recall = plot_precision_recall_allclasses(y_val, y_val_pred, UNIQUE_LABELS) # TODO: Richtige labels
+    precision, recall = plot_precision_recall_allclasses(y_val, y_val_pred, labels) # TODO: Richtige labels
 
-    print(classification_report(y_val, y_val_pred_bool, target_names = sorted(UNIQUE_LABELS)))
+    print(classification_report(y_val, y_val_pred_bool, target_names = sorted(labels)))
 
 
     # F2 Score
@@ -446,7 +453,7 @@ def evaluate_model(m, history, train_generator, valid_generator):
 
 
     # confusion matrix
-    show_multilabel_confusion_matrix(y_val, y_val_pred_bool, UNIQUE_LABELS)
+    show_multilabel_confusion_matrix(y_val, y_val_pred_bool, labels)
 
 
     # Show some predictions
