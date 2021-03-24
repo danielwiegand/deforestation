@@ -11,7 +11,7 @@ from tensorflow.python.keras.saving.save import load_model
 from wandb.keras import WandbCallback
 import wandb
 from timeit import default_timer as timer
-from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions, ypred_to_bool, f2_score, show_multilabel_confusion_matrix, StatefullMultiLabelFBeta, get_labels_from_generator, get_optimal_threshold, plot_precision_recall_allclasses
+from functions import show_image, image_from_array, create_generator, build_model, load_labels, show_image_predictions, ypred_to_bool, f2_score, show_multilabel_confusion_matrix, StatefullMultiLabelFBeta, get_labels_from_generator, get_optimal_threshold, plot_precision_recall_allclasses, format_for_submission
 
 
 IMAGE_PATH_TRAIN = "../data/images/train-jpg/"
@@ -52,7 +52,7 @@ train_set, val_set = train_test_split(y_labels[:6000], test_size = 0.2)
 
 train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = UNIQUE_LABELS)
 
-# TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den test_gen aber die Funktion verändert werden (keine augmentation)
+# TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den val_gen aber die Funktion verändert werden (keine augmentation)
 
 valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = UNIQUE_LABELS)
 
@@ -106,105 +106,106 @@ run.finish()
 from tensorflow.keras.models import load_model
 m = load_model("models/6000-10epochs")
 
-m.evaluate(train_generator)
-m.evaluate(valid_generator) # TODO: andere metrik?
+# FBeta / AUC
+train_loss, train_fbeta, train_auc = np.round(m.evaluate(train_generator), 2)
+valid_loss, valid_fbeta, valid_auc = np.round(m.evaluate(valid_generator), 2)
+print(f"F2-Score Train: {train_fbeta}\nF2-Score Valid: {valid_fbeta}\nAUC Train: {train_auc}\nAUC Valid: {valid_auc}")
 
-
-# TODO geht das mit F2?
-plt.plot(history.history['loss'], label='training_loss')
-plt.plot(history.history['val_loss'], label='validation_loss')
+# Plot development
+plt.plot(history.history['loss'], label = 'training_loss')
+plt.plot(history.history['val_loss'], label = 'validation_loss')
 plt.legend()
 
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
+plt.plot(history.history['state_full_binary_fbeta'], label = "training_fbeta")
+plt.plot(history.history['val_state_full_binary_fbeta'], label = "validation_fbeta")
+plt.legend()
 
-
-# TODO beste threshold?
-
+plt.plot(history.history['auc'], label = "training_auc")
+plt.plot(history.history['val_auc'], label = "validation_auc")
+plt.legend()
 
 
 # Get y_train
 y_train = get_labels_from_generator(train_generator)
 
 # Get y_pred
-y_pred = m.predict_generator(train_generator,
-                             steps = STEP_SIZE_TRAIN,
-                             verbose = 1)
+y_train_pred = m.predict(train_generator,
+                         steps = STEP_SIZE_TRAIN,
+                         verbose = 1)
+
+# Get y_val
+y_val = get_labels_from_generator(valid_generator)
+
+# Get y_pred
+y_val_pred = m.predict(valid_generator,
+                       steps = STEP_SIZE_VALID,
+                       verbose = 1)
+
 
 # Thresholding
-best_threshold = get_optimal_threshold(y_train, y_pred) #! mit validation set machen!
+best_threshold = get_optimal_threshold(y_val, y_val_pred)
 
-y_pred_bool = ypred_to_bool(y_pred, 0.4) # TODO mit best threshold
+y_val_pred_bool = ypred_to_bool(y_val_pred, best_threshold)
 
 
 # precision / recall
 
-precision_score(y_train, y_pred_bool, average = "macro")
+precision_score(y_val, y_val_pred_bool, average = "macro")
 # macro: Calculate metrics for each label, and find their unweighted mean. This does not take label imbalance into account.
 # micro: Calculate metrics globally by counting the total true positives, false negatives and false positives.
 
-precision, recall = plot_precision_recall_allclasses(y_train, y_pred, UNIQUE_LABELS)
+precision, recall = plot_precision_recall_allclasses(y_val, y_val_pred, UNIQUE_LABELS)
 
-print(classification_report(y_train, y_pred_bool, target_names = sorted(UNIQUE_LABELS)))
+print(classification_report(y_val, y_val_pred_bool, target_names = sorted(UNIQUE_LABELS)))
 
 # F2 Score
-f2_score(y_train, y_pred_bool)
+f2_score(y_val, y_val_pred_bool)
 
 # confusion matrix
-show_multilabel_confusion_matrix(y_train, y_pred_bool, UNIQUE_LABELS)
+show_multilabel_confusion_matrix(y_val, y_val_pred_bool, UNIQUE_LABELS)
 
 # Show some predictions
-show_image_predictions(train_generator, y_pred_bool, False)
+show_image_predictions(valid_generator, y_val_pred_bool, False)
 
 
 
 # * PREDICT
 
-# test_set = y_labels[6000:7000]
+# Evaluate
 
-# # Evaluate
+submission = predict_on_testset(model = m, classes = train_generator.class_indices)
 
-# test_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = UNIQUE_LABELS)
+submission.to_csv("./submissions/submission.csv")
 
-# m.evaluate(test_generator) # TODO: andere metrik?
-
-# # Generate ypreds
-
-# STEP_SIZE_TEST = test_generator.n // test_generator.batch_size
-
-# test_generator.reset()
-
-# ypred = m.predict_generator(test_generator,
-#                             steps = STEP_SIZE_TEST,
-#                             verbose = 1)
+import kaggle
+!kaggle competitions submit -c planet-understanding-the-amazon-from-space -f submissions/submission.csv -m "First submit"
 
 
-# ypred_bool = ypred_to_bool(ypred, 0.4)
 
-# results = pd.DataFrame(ypred_bool, columns = test_generator.class_indices, index = test_generator.filenames)
+def predict_on_testset(model, classes):
+    
+    test_datagen = ImageDataGenerator(rescale = 1./255)
 
-# # Generate ytrues
-# # TODO ersetzen durch get_labels_from_generator()?
-# ytrue_generator = create_generator(test_set, IMAGE_PATH_TRAIN, batch_size = len(test_set), shuffle = False, classes = UNIQUE_LABELS)
-# img, ytrue = ytrue_generator.next()
-# del img
+    # From https://stackoverflow.com/questions/57516673/how-to-perform-prediction-using-predict-generator-on-unlabeled-test-data-in-kera
+    test_generator = test_datagen.flow_from_directory(
+            '../data/images/',
+            batch_size = 1,
+            shuffle = False,
+            classes = ["test-jpg", "test-jpg-additional"], # subfolders
+            class_mode = None, # do not create labels
+            target_size = (256,256))
 
-# # Score
+    y_test_pred = model.predict(test_generator, verbose = 1)
 
-# f2_score(ytrue, ypred_bool)
+    y_test_pred_bool = ypred_to_bool(y_test_pred, best_threshold)
 
+    filenames = [re.findall(r"\/(.+).jpg", filename)[0] for filename in test_generator.filenames]
 
-# # confusion matrix
-# show_multilabel_confusion_matrix(ytrue, ypred_bool, UNIQUE_LABELS)
-   
-# # Show some predictions
-# show_image_predictions(test_generator, ypred_bool, False)
+    results = pd.DataFrame(y_test_pred_bool, 
+                           columns = classes, 
+                           index = filenames)
 
-# # predision / recall
-# from sklearn.metrics import precision_score
-# precision_score(ytrue, ypred_bool, average = "macro")
-
-# from sklearn.metrics import classification_report
-# print(classification_report(ytrue, ypred_bool, target_names = sorted(UNIQUE_LABELS)))
-
+    submission = format_for_submission(results)
+        
+    return submission
 

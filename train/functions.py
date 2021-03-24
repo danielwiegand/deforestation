@@ -203,7 +203,7 @@ class StatefullMultiLabelFBeta(Metric):
         ytrue = tf.cast(ytrue, tf.float32)
         
         # making ypred one hot encoded 
-        ypred = tf.cast(tf.greater_equal(tf.cast(ypred, tf.float32), tf.constant(threshold)), tf.float32)
+        ypred = tf.cast(tf.greater_equal(tf.cast(ypred, tf.float32), tf.constant(self.threshold)), tf.float32)
         
         if self.average == 'samples': # we are to keep track of only fbeta
             # calculate true positives, predicted positives and actual positives atrribute along the last axis
@@ -215,8 +215,7 @@ class StatefullMultiLabelFBeta(Metric):
             recall = tp/(actual_positives+self.epsilon) # calculate the recall
             
             # calculate the fbeta score
-            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + \
-                                                                      recall + self.epsilon)
+            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
             
             if sample_weight is not None: # if sample weight is available for stand alone usage
                 self.fb = tf.reduce_sum(fb*sample_weight)
@@ -238,8 +237,7 @@ class StatefullMultiLabelFBeta(Metric):
             recall = self.tp/(self.actual_positives+self.epsilon) # calculate the recall
 
             # calculate the fbeta score
-            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + \
-                                                                      recall + self.epsilon)
+            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
             if self.average == 'weighted':
                 return tf.reduce_sum(fb*self.actual_positives / tf.reduce_sum(self.actual_positives))
 
@@ -289,3 +287,23 @@ def get_optimal_threshold(true_label, prediction, iterations = 100):
                 best_threshold[t] = temp_value
     return best_threshold
 
+
+def format_for_submission(df):
+    """Format a data frame in the way which is required for submission on Kaggle.
+
+    Args:
+        df (DataFrame): DataFrame with one column per class
+
+    Returns:
+        DataFrame: DataFrame with one column for all labels, separated by a space
+    """
+    preds = []
+    for i in tqdm(range(df.shape[0])):
+        subset = df.iloc[i]
+        tags =  " ".join(subset[subset == 1].index.tolist())
+        preds.append(tags)
+    
+    out = pd.DataFrame(index = df.index)
+    out.index.name = "image_name"
+    out["tags"] = preds
+    return out
