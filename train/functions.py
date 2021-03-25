@@ -97,6 +97,7 @@ def build_cnn(config, n_labels):
             padding = "same"),
         MaxPooling2D(pool_size = (3, 3), strides = (2, 2), padding = "same"),
         Activation(config.activation),
+        Dropout(0.2),
         BatchNormalization(),
         # Layer 3
         Conv2D(filters = 64, 
@@ -104,6 +105,7 @@ def build_cnn(config, n_labels):
             strides = (2, 2),
             padding = "same"),
         Activation(config.activation),
+        Dropout(0.2),
         # Layer 4
         Conv2D(filters = 64, 
             kernel_size = (3, 3), 
@@ -111,6 +113,7 @@ def build_cnn(config, n_labels):
             padding = "same"),
         MaxPooling2D(pool_size = (3, 3), strides = (2, 2), padding = "same"),
         Activation(config.activation),
+        Dropout(0.2),
         BatchNormalization(),
         Flatten(),
         # Output Layer
@@ -148,7 +151,7 @@ def create_model(train_set, val_set, config, labels):
 def create_callbacks(model_name):
 
     early_stopping = EarlyStopping(monitor = "val_loss", 
-                                   patience = 10
+                                   patience = 2
                                    )
 
     checkpoint = ModelCheckpoint(f'models/{model_name}.hdf5', 
