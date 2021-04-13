@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from wandb.keras import WandbCallback
 import wandb
-from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model
+from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model, generate_generators
 
 
 # * LOAD DATA
@@ -40,7 +40,10 @@ config = wandb.config
 
 train_set, val_set = train_test_split(y_labels[0:100], test_size = 0.2)
 
-m, train_generator, valid_generator = create_model(train_set, val_set, config, UNIQUE_LABELS)
+train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = True)
+
+m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
+
 
 early_stopping, checkpoint = create_callbacks(model_name = wandb.run.name)
 
@@ -78,4 +81,3 @@ submission = predict_on_testset(model = m, classes = train_generator.class_indic
 # submission.to_csv("./submissions/submission.csv")
 
 !kaggle competitions submit -c planet-understanding-the-amazon-from-space -f submissions/submission.csv -m "First submit"
-

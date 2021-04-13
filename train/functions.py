@@ -123,29 +123,86 @@ def build_cnn(config, n_labels):
     
     return m
 
-
-def create_model(train_set, val_set, config, labels):
+def create_generator(df, directory, batch_size, shuffle, classes, transfer_learning):
     
-    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels)
+    if transfer_learning == True:
+        preprocessing_func = preprocess_input
+        rescale_factor = 0
+    else:
+        preprocessing_func = None
+        rescale_factor = 1./255.
+    
+    datagen = ImageDataGenerator(rescale = rescale_factor,
+                                 preprocessing_function = preprocessing_func)
+                                #  preprocessing_function = preprocessing_func)
+                                #    featurewise_center = True,
+                                #    featurewise_std_normalization = True,
+                                #    rotation_range = 20,
+                                #    width_shift_range = 0.2,
+                                #    horizontal_flip = True,
+                                #    vertical_flip = True)
+
+    generator = datagen.flow_from_dataframe(
+        dataframe = df,
+        directory = directory,
+        x_col = "image_name",
+        y_col = "tags",
+        batch_size = batch_size,
+        seed = 42,
+        shuffle = shuffle,
+        classes = classes,
+        class_mode = "categorical",
+        target_size = (256,256) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. 
+        )
+    
+    return generator
+
+
+def generate_generators(train_set, val_set, config, labels, transfer_learning):
+        
+    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning)
 
     # TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den val_gen aber die Funktion verändert werden (keine augmentation)
 
-    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = True, classes = labels) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
+    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
+    
+    return train_generator, valid_generator
 
-    m = build_cnn(config, len(labels))
 
-    m.summary()
-
+def create_model(config, labels, transfer_learning):
+    
+    if transfer_learning == False:
+        
+        m = build_cnn(config, len(labels))
+        
+    else:
+        
+        base_model = NASNetMobile(
+            input_tensor = Input(shape = (256, 256, 3)),
+            include_top = False,
+            weights = "imagenet",
+            pooling = "avg"
+        )
+        
+        base_model.trainable = False
+        
+        m = Sequential([
+            base_model,
+            Dense(len(labels), activation = "sigmoid")
+        ])
 
     F2Score = MultiLabelFBeta(n_class = len(labels), 
-                                    beta = 2,
-                                    threshold = 0.4)
+                              beta = 2,
+                              threshold = 0.4)
 
     m.compile(optimizer = config.optimizer, 
             loss = 'binary_crossentropy', 
             metrics = [F2Score, "AUC"])
     
-    return m, train_generator, valid_generator
+    m.summary()
+    
+    return m
+
 
 
 def create_callbacks(model_name):
