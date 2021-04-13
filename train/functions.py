@@ -17,6 +17,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.preprocessing.image import (ImageDataGenerator,
                                                   img_to_array, load_img)
 from tqdm import tqdm
+from tensorflow.keras.applications.nasnet import NASNetMobile, preprocess_input, decode_predictions
+
 
 # * CONSTANTS
 
