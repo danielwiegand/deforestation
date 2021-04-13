@@ -10,7 +10,7 @@ from sklearn.metrics import (average_precision_score, classification_report,
                              precision_recall_curve, precision_score)
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
+from tensorflow.keras.layers import (Input, Activation, BatchNormalization, Conv2D,
                                      Dense, Dropout, Flatten, MaxPooling2D)
 from tensorflow.keras.metrics import Metric
 from tensorflow.keras.models import Sequential
