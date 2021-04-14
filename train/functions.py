@@ -213,10 +213,10 @@ def create_model(config, labels, transfer_learning):
 
 
 
-def create_callbacks(model_name):
+def create_callbacks(model_name, patience):
 
     early_stopping = EarlyStopping(monitor = "val_loss", 
-                                   patience = 2
+                                   patience = patience
                                    )
 
     checkpoint = ModelCheckpoint(f'models/{model_name}.hdf5', 
