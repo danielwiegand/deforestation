@@ -195,6 +195,7 @@ def create_model(config, labels, transfer_learning):
         m = Sequential([
             base_model,
             Dense(50, activation = "relu"),
+            Dropout(0.3),
             Dense(50, activation = "relu"),
             Dense(len(labels), activation = "sigmoid")
         ])

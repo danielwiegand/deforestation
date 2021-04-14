@@ -49,7 +49,7 @@ train_generator, valid_generator = generate_generators(train_set, val_set, confi
 m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
 
 early_stopping, checkpoint = create_callbacks(model_name = wandb.run.name,
-                                              patience = 10)
+                                              patience = 3)
 
 
 # * RUN MODEL
