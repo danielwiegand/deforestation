@@ -43,7 +43,7 @@ config = wandb.config
 
 # * CREATE MODEL
 
-train_set, val_set = train_test_split(y_labels, test_size = 0.2)
+train_set, val_set = train_test_split(y_labels[0:1280], test_size = 0.2)
 
 train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = True)
 

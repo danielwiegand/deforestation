@@ -158,7 +158,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
         shuffle = shuffle,
         classes = classes,
         class_mode = "categorical",
-        target_size = (256,256) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. 
+        target_size = (224, 224) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. 
         )
     
     return generator
@@ -185,6 +185,7 @@ def create_model(config, labels, transfer_learning):
         
         base_model = NASNetMobile(
             # input_tensor = Input(shape = (256, 256, 3)),
+            input_shape = (224, 224, 3),
             include_top = False,
             weights = "imagenet",
             pooling = None
@@ -195,7 +196,7 @@ def create_model(config, labels, transfer_learning):
         
         # Alternative 1: Functional API
         
-        inputs = Input(shape = (256, 256, 3)) # Alternative: Argument `input_tensor` direkt bei der Instanziierung des base_model
+        inputs = Input(shape = (224, 224, 3))
         
         # We make sure that the base_model is running in inference mode here, by passing `training=False`. This is important for fine-tuning.
         x = base_model(inputs, training = False)
@@ -203,7 +204,7 @@ def create_model(config, labels, transfer_learning):
         # Convert features of shape `base_model.output_shape[1:]` to vectors
         x = GlobalAveragePooling2D()(x)
         
-        outputs = Dense(50, activation = "relu")(x)
+        outputs = Dense(len(labels), activation = "sigmoid")(x)
         
         m = Model(inputs, outputs)
 
