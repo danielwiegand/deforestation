@@ -63,7 +63,7 @@ history = m.fit(train_generator,
                 validation_data = valid_generator,
                 validation_steps = STEP_SIZE_VALID,
                 epochs = config.epochs,
-                class_weight = weight_dict,
+                class_weight = None,
                 callbacks = [WandbCallback(), early_stopping, checkpoint]
                 )
 run.finish()

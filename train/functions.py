@@ -129,7 +129,7 @@ def build_cnn(config, n_labels):
     
     return m
 
-def create_generator(df, directory, batch_size, shuffle, classes, transfer_learning):
+def create_generator(df, directory, batch_size, shuffle, classes, transfer_learning, augmentation):
     
     if transfer_learning == True:
         preprocessing_func = preprocess_input
@@ -137,16 +137,22 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     else:
         preprocessing_func = None
         rescale_factor = 1./255.
+        
+    if augmentation:
     
-    datagen = ImageDataGenerator(rescale = rescale_factor,
-                                 preprocessing_function = preprocessing_func)
-                                #  preprocessing_function = preprocessing_func)
-                                #    featurewise_center = True,
-                                #    featurewise_std_normalization = True,
-                                #    rotation_range = 20,
-                                #    width_shift_range = 0.2,
-                                #    horizontal_flip = True,
-                                #    vertical_flip = True)
+        datagen = ImageDataGenerator(rescale = rescale_factor,
+                                     preprocessing_function = preprocessing_func,
+                                     featurewise_center = True,
+                                     featurewise_std_normalization = True,
+                                     rotation_range = 20,
+                                     width_shift_range = 0.2,
+                                     horizontal_flip = True,
+                                     vertical_flip = True)
+        
+    else:
+        
+        datagen = ImageDataGenerator(rescale = rescale_factor,
+                                     preprocessing_function = preprocessing_func)
 
     generator = datagen.flow_from_dataframe(
         dataframe = df,
@@ -166,11 +172,9 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
 
 def generate_generators(train_set, val_set, config, labels, transfer_learning):
         
-    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning)
+    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = True)
 
-    # TODO In Zukunft hier evtl. augmentation einfügen. Dann muss für den val_gen aber die Funktion verändert werden (keine augmentation)
-
-    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
+    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
     
     return train_generator, valid_generator
 
