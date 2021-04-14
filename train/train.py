@@ -31,7 +31,8 @@ run = wandb.init(project = "deforestation",
                      "dense_units": "512",
                      "full_data": True,
                      "data_size": None,
-                     "epochs": 2,
+                     "epochs": 100,
+                     "patience": 5,
                      "early_stop": True,
                      "batch_size": 32,
                      "activation": "elu",
@@ -49,7 +50,7 @@ train_generator, valid_generator = generate_generators(train_set, val_set, confi
 m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
 
 early_stopping, checkpoint = create_callbacks(model_name = wandb.run.name,
-                                              patience = 3)
+                                              patience = config.patience)
 
 
 # * RUN MODEL

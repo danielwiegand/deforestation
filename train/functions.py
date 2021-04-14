@@ -187,15 +187,14 @@ def create_model(config, labels, transfer_learning):
             input_tensor = Input(shape = (256, 256, 3)),
             include_top = False,
             weights = "imagenet",
-            pooling = "avg"
+            pooling = None
         )
         
         base_model.trainable = False
         
         m = Sequential([
             base_model,
-            Dense(50, activation = "relu"),
-            Dropout(0.3),
+            Flatten(),
             Dense(50, activation = "relu"),
             Dense(len(labels), activation = "sigmoid")
         ])
