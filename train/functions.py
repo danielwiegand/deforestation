@@ -1,3 +1,5 @@
+import collections
+import pickle
 import re
 
 import numpy as np
@@ -9,16 +11,18 @@ from sklearn.metrics import (average_precision_score, classification_report,
                              fbeta_score, multilabel_confusion_matrix,
                              precision_recall_curve, precision_score)
 from tensorflow.keras import backend as K
+from tensorflow.keras.applications.nasnet import (NASNetMobile,
+                                                  decode_predictions,
+                                                  preprocess_input)
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import (Input, Activation, BatchNormalization, Conv2D,
-                                     Dense, Dropout, Flatten, MaxPooling2D)
+from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
+                                     Dense, Dropout, Flatten, Input,
+                                     MaxPooling2D)
 from tensorflow.keras.metrics import Metric
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.preprocessing.image import (ImageDataGenerator,
                                                   img_to_array, load_img)
 from tqdm import tqdm
-from tensorflow.keras.applications.nasnet import NASNetMobile, preprocess_input, decode_predictions
-
 
 # * CONSTANTS
 
@@ -522,3 +526,21 @@ def evaluate_model(m, history, train_generator, valid_generator, labels):
     
     
     return y_train, y_train_pred, y_val, y_val_pred, best_threshold
+
+
+
+def get_class_weights(y_labels, train_generator):
+    # class_weight: Optional dictionary mapping class indices (integers) to a weight (float) value, used for weighting the loss function (during training only).
+    all_labels = sum(y_labels.tags.tolist(), [])
+    counter = collections.Counter(all_labels)
+    all_labels = pd.DataFrame(counter.values(), index = counter.keys(), columns = ["weight"])
+    weights = 1 / all_labels * all_labels.max(axis = 0)
+    
+    class_indices = train_generator.class_indices
+    class_indices = pd.DataFrame(class_indices.values(), index = class_indices.keys(), columns = ["class_index"])
+    
+    weight_dict = pd.merge(weights, class_indices, left_index = True, right_index = True).set_index("class_index").to_dict()
+    
+    pickle.dump(weight_dict["weight"], open("pickle/weight_dict.p", "wb"))
+    
+    return(weight_dict["weight"])

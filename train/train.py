@@ -1,4 +1,5 @@
 import os
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -6,12 +7,15 @@ from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from wandb.keras import WandbCallback
 import wandb
-from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model, generate_generators
+from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model, generate_generators, get_class_weights
 
 
 # * LOAD DATA
 
 y_labels, UNIQUE_LABELS = load_labels()
+
+# weight_dict = get_class_weights(y_labels, train_generator)
+weight_dict = pickle.load(open("pickle/weight_dict.p", "rb"))
 
 
 # * INITIALIZE WANDB
@@ -38,14 +42,14 @@ config = wandb.config
 
 # * CREATE MODEL
 
-train_set, val_set = train_test_split(y_labels[0:100], test_size = 0.2)
+train_set, val_set = train_test_split(y_labels, test_size = 0.2)
 
 train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = True)
 
 m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
 
-
 early_stopping, checkpoint = create_callbacks(model_name = wandb.run.name)
+
 
 # * RUN MODEL
 
@@ -57,7 +61,7 @@ history = m.fit(train_generator,
                 validation_data = valid_generator,
                 validation_steps = STEP_SIZE_VALID,
                 epochs = config.epochs,
-                class_weight = None,
+                class_weight = weight_dict,
                 callbacks = [WandbCallback(), early_stopping, checkpoint]
                 )
 run.finish()
