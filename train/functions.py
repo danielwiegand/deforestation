@@ -16,8 +16,8 @@ from tensorflow.keras.applications.nasnet import (NASNetMobile,
                                                   preprocess_input)
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
-                                     Dense, Dropout, Flatten, Input,
-                                     MaxPooling2D)
+                                     Dense, Dropout, Flatten, MaxPooling2D, GlobalAveragePooling2D)
+from tensorflow.keras import Model, Input
 from tensorflow.keras.metrics import Metric
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.preprocessing.image import (ImageDataGenerator,
@@ -184,7 +184,7 @@ def create_model(config, labels, transfer_learning):
     else:
         
         base_model = NASNetMobile(
-            input_tensor = Input(shape = (256, 256, 3)),
+            # input_tensor = Input(shape = (256, 256, 3)),
             include_top = False,
             weights = "imagenet",
             pooling = None
@@ -192,12 +192,30 @@ def create_model(config, labels, transfer_learning):
         
         base_model.trainable = False
         
-        m = Sequential([
-            base_model,
-            Flatten(),
-            Dense(50, activation = "relu"),
-            Dense(len(labels), activation = "sigmoid")
-        ])
+        
+        # Alternative 1: Functional API
+        
+        inputs = Input(shape = (256, 256, 3)) # Alternative: Argument `input_tensor` direkt bei der Instanziierung des base_model
+        
+        # We make sure that the base_model is running in inference mode here, by passing `training=False`. This is important for fine-tuning.
+        x = base_model(inputs, training = False)
+        
+        # Convert features of shape `base_model.output_shape[1:]` to vectors
+        x = GlobalAveragePooling2D()(x)
+        
+        outputs = Dense(50, activation = "relu")(x)
+        
+        m = Model(inputs, outputs)
+
+
+        # Alternative 2: Sequential API
+        
+        # m = Sequential([
+        #     base_model,
+        #     Flatten(),
+        #     Dense(50, activation = "relu"),
+        #     Dense(len(labels), activation = "sigmoid")
+        # ])
 
     F2Score = MultiLabelFBeta(n_class = len(labels), 
                               beta = 2,
