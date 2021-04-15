@@ -62,30 +62,6 @@ def load_labels():
     
     return y_labels, UNIQUE_LABELS
 
-def create_generator(df, directory, batch_size, shuffle, classes):
-    
-    datagen = ImageDataGenerator(rescale = 1./255.)
-                                #    featurewise_center = True,
-                                #    featurewise_std_normalization = True,
-                                #    rotation_range = 20,
-                                #    width_shift_range = 0.2,
-                                #    horizontal_flip = True,
-                                #    vertical_flip = True)
-
-    generator = datagen.flow_from_dataframe(
-        dataframe = df,
-        directory = directory,
-        x_col = "image_name",
-        y_col = "tags",
-        batch_size = batch_size,
-        seed = 42,
-        shuffle = shuffle,
-        classes = classes,
-        class_mode = "categorical",
-        target_size = (256,256))
-    
-    return generator
-
 def build_cnn(config, n_labels):
     
     m = Sequential([ 
@@ -188,7 +164,7 @@ def create_model(config, labels, transfer_learning):
         
     else:
         
-        base_model = NASNetMobile(
+        base_model = NASNetLarge(
             # input_tensor = Input(shape = (256, 256, 3)),
             input_shape = (224, 224, 3),
             include_top = False,
@@ -203,11 +179,14 @@ def create_model(config, labels, transfer_learning):
         
         inputs = Input(shape = (224, 224, 3))
         
-        # We make sure that the base_model is running in inference mode here, by passing `training=False`. This is important for fine-tuning.
+        # The base model contains batchnorm layers. We want to keep them in inference mode when we unfreeze the base model for fine-tuning, so we make sure that the base_model is running in inference mode here.
         x = base_model(inputs, training = False)
         
         # Convert features of shape `base_model.output_shape[1:]` to vectors
         x = GlobalAveragePooling2D()(x)
+        
+        # Regularize with dropout
+        x = keras.layers.Dropout(0.2)(x)
         
         outputs = Dense(len(labels), activation = "sigmoid")(x)
         
