@@ -141,7 +141,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
         shuffle = shuffle,
         classes = classes,
         class_mode = "categorical",
-        target_size = (224, 224) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. 
+        target_size = (331, 331) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. NASnet mobile: (224, 224). NASnet Large: (331, 331)
         )
     
     return generator
@@ -166,7 +166,7 @@ def create_model(config, labels, transfer_learning):
         
         base_model = NASNetLarge(
             # input_tensor = Input(shape = (256, 256, 3)),
-            input_shape = (224, 224, 3),
+            input_shape = (331, 331, 3),
             include_top = False,
             weights = "imagenet",
             pooling = None
@@ -177,7 +177,7 @@ def create_model(config, labels, transfer_learning):
         
         # Alternative 1: Functional API
         
-        inputs = Input(shape = (224, 224, 3))
+        inputs = Input(shape = (331, 331, 3))
         
         # The base model contains batchnorm layers. We want to keep them in inference mode when we unfreeze the base model for fine-tuning, so we make sure that the base_model is running in inference mode here.
         x = base_model(inputs, training = False)
@@ -186,7 +186,7 @@ def create_model(config, labels, transfer_learning):
         x = GlobalAveragePooling2D()(x)
         
         # Regularize with dropout
-        x = keras.layers.Dropout(0.2)(x)
+        x = Dropout(0.2)(x)
         
         outputs = Dense(len(labels), activation = "sigmoid")(x)
         
