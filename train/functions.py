@@ -11,7 +11,7 @@ from sklearn.metrics import (average_precision_score, classification_report,
                              fbeta_score, multilabel_confusion_matrix,
                              precision_recall_curve, precision_score)
 from tensorflow.keras import backend as K
-from tensorflow.keras.applications.nasnet import (NASNetMobile,
+from tensorflow.keras.applications.nasnet import (NASNetMobile, NASNetLarge,
                                                   decode_predictions,
                                                   preprocess_input)
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
