@@ -185,6 +185,8 @@ def create_model(config, labels, transfer_learning):
         # Convert features of shape `base_model.output_shape[1:]` to vectors
         x = GlobalAveragePooling2D()(x)
         
+        x = Dense(50, activation = "relu")(x)
+        
         # Regularize with dropout
         x = Dropout(0.2)(x)
         
