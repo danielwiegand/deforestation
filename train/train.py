@@ -43,13 +43,13 @@ config = wandb.config
 
 # * CREATE MODEL
 
-train_set, val_set = train_test_split(y_labels[0:1280], test_size = 0.2)
+train_set, val_set = train_test_split(y_labels, test_size = 0.2)
 
 train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = True)
 
 m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
 
-early_stopping, checkpoint = create_callbacks(model_name = wandb.run.name,
+early_stopping, checkpoint, reduce_lr = create_callbacks(model_name = wandb.run.name,
                                               patience = config.patience)
 
 
@@ -64,7 +64,7 @@ history = m.fit(train_generator,
                 validation_steps = STEP_SIZE_VALID,
                 epochs = config.epochs,
                 class_weight = None,
-                callbacks = [WandbCallback(), early_stopping, checkpoint]
+                callbacks = [WandbCallback(), early_stopping, checkpoint, reduce_lr]
                 )
 run.finish()
 

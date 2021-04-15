@@ -14,7 +14,7 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.applications.nasnet import (NASNetMobile,
                                                   decode_predictions,
                                                   preprocess_input)
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
                                      Dense, Dropout, Flatten, MaxPooling2D, GlobalAveragePooling2D)
 from tensorflow.keras import Model, Input
@@ -144,7 +144,8 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
                                      preprocessing_function = preprocessing_func,
                                      featurewise_center = True,
                                      featurewise_std_normalization = True,
-                                     rotation_range = 20,
+                                     rotation_range = 90,
+                                     zoom_range = 0.5,
                                      width_shift_range = 0.2,
                                      horizontal_flip = True,
                                      vertical_flip = True)
@@ -248,7 +249,13 @@ def create_callbacks(model_name, patience):
                                  save_best_only = True, 
                                  save_weights_only = True)
     
-    return early_stopping, checkpoint
+    reduce_lr = ReduceLROnPlateau(monitor = "val_loss", 
+                                  factor = 0.1, 
+                                  patience = 2, 
+                                  cooldown = 2, 
+                                  verbose = 1)
+    
+    return early_stopping, checkpoint, reduce_lr
 
 
 
