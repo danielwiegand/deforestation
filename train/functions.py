@@ -149,7 +149,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
 
 def generate_generators(train_set, val_set, config, labels, transfer_learning):
         
-    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = True)
+    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = False)
 
     valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
     
