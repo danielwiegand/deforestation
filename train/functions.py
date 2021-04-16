@@ -118,8 +118,8 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     
         datagen = ImageDataGenerator(rescale = rescale_factor,
                                      preprocessing_function = preprocessing_func,
-                                     featurewise_center = True,
-                                     featurewise_std_normalization = True,
+                                     # featurewise_center = True,
+                                     # featurewise_std_normalization = True,
                                      rotation_range = 90,
                                      zoom_range = 0.5,
                                      width_shift_range = 0.2,
@@ -231,9 +231,10 @@ def create_callbacks(model_name, patience):
                                  save_weights_only = True)
     
     reduce_lr = ReduceLROnPlateau(monitor = "val_loss", 
-                                  factor = 0.1, 
+                                  factor = 0.5, 
                                   patience = 2, 
                                   cooldown = 2, 
+                                  min_lr = 1e-6,
                                   verbose = 1)
     
     return early_stopping, checkpoint, reduce_lr
