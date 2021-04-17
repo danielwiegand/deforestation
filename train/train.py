@@ -46,7 +46,7 @@ config = wandb.config
 
 train_set, val_set = train_test_split(y_labels, test_size = 0.2)
 
-train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
+train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = config.transfer_learning, augmentation = False)
 
 m = create_model(config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
 

@@ -109,9 +109,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     
     if transfer_learning == True:
         preprocessing_func = preprocess_input
-        #!!! HIER EIGENTLICH 0!!
-        rescale_factor = 1./255.
-        #!!!!!!!!!!!!!!!!!!!!!!!
+        rescale_factor = 0
     else:
         preprocessing_func = None
         rescale_factor = 1./255.
@@ -149,11 +147,12 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     return generator
 
 
-def generate_generators(train_set, val_set, config, labels, transfer_learning):
+def generate_generators(train_set, val_set, config, labels, transfer_learning, augmentation):
         
-    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = False)
+    train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = augmentation)
 
-    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph
+    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph.
+    # Augmentation is always False for the validation generator.
     
     return train_generator, valid_generator
 
@@ -185,7 +184,8 @@ def create_model(config, labels, transfer_learning):
         x = base_model(inputs, training = False)
         
         # Convert features of shape `base_model.output_shape[1:]` to vectors
-        x = GlobalAveragePooling2D()(x)
+        # x = GlobalAveragePooling2D()(x)
+        x = Flatten()(x)
         
         x = Dense(50, activation = "relu")(x)
         
@@ -302,86 +302,8 @@ def plot_precision_recall_allclasses(y_train, y_pred, labels):
         plt.title(sorted(labels)[i])
         
     return precision, recall
-            
-class MultiLabelFBeta(Metric):
-    """ From https://towardsdatascience.com/f-beta-score-in-keras-part-iii-28b1721fc442 """
-    def __init__(self, n_class, beta, threshold, average = 'samples', epsilon = 1e-7, name = 'binary_fbeta', **kwargs):
-        
-        # initializing an object of the super class
-        super(MultiLabelFBeta, self).__init__(name=name, **kwargs)
-            
-        # initializing atrributes
-        self.tp = self.add_weight(name='tp', shape=(n_class,), initializer='zeros') # initializing true positives
-        self.actual_positives = self.add_weight(name='ap', shape=(n_class,), initializer='zeros') 
-        self.predicted_positives = self.add_weight(name='pp', shape=(n_class,), initializer='zeros')
 
-        self.n_samples = self.add_weight(name='n_samples', initializer='zeros')
-        self.sum_fb = self.add_weight(name='sum_fb', initializer='zeros')
 
-        # initializing other atrributes that wouldn't be changed for every object of this class
-        self.beta_squared = beta**2
-        self.average = average
-        self.n_class = n_class
-        self.threshold = threshold
-        self.epsilon = epsilon
-
-    def update_state(self, ytrue, ypred, sample_weight=None):
-        # casting ytrue float dtype
-        ytrue = tf.cast(ytrue, tf.float32)
-        
-        # making ypred one hot encoded 
-        ypred = tf.cast(tf.greater_equal(tf.cast(ypred, tf.float32), tf.constant(self.threshold)), tf.float32)
-        
-        if self.average == 'samples': # we are to keep track of only fbeta
-            # calculate true positives, predicted positives and actual positives atrribute along the last axis
-            tp = tf.reduce_sum(ytrue*ypred, axis=-1) 
-            predicted_positives = tf.reduce_sum(ypred, axis=-1)
-            actual_positives = tf.reduce_sum(ytrue, axis=-1)
-            
-            precision = tp/(predicted_positives+self.epsilon) # calculate the precision
-            recall = tp/(actual_positives+self.epsilon) # calculate the recall
-            
-            # calculate the fbeta score
-            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
-            
-            if sample_weight is not None: # if sample weight is available for stand alone usage
-                self.fb = tf.reduce_sum(fb*sample_weight)
-            else:
-                n_rows = tf.reduce_sum(tf.shape(ytrue)*tf.constant([1, 0])) # getting the number of rows in ytrue
-                self.n_samples.assign_add(tf.cast(n_rows, tf.float32)) # updating n_samples
-                self.sum_fb.assign_add(tf.reduce_sum(fb)) # getting the running sum of fb
-                self.fb = self.sum_fb / self.n_samples # getting the running mean of fb
-
-        else:
-            # keep track of true, predicted and actual positives because they are calculated along axis 0
-            self.tp.assign_add(tf.reduce_sum(ytrue*ypred, axis=0)) 
-            self.assign_add(predicted_positives = tf.reduce_sum(ypred, axis=0))
-            self.actual_positives.assign_add(tf.reduce_sum(ytrue, axis=0)) 
-            
-    def result(self):
-        if self.average != 'samples':
-            precision = self.tp/(self.predicted_positives+self.epsilon) # calculate the precision
-            recall = self.tp/(self.actual_positives+self.epsilon) # calculate the recall
-
-            # calculate the fbeta score
-            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
-            if self.average == 'weighted':
-                return tf.reduce_sum(fb*self.actual_positives / tf.reduce_sum(self.actual_positives))
-
-            elif self.average == 'raw':
-                return fb
-            
-            return tf.reduce_mean(fb) # then it is 'macro' averaging 
-    
-        return self.fb # then it is either 'samples' with or without sample weight
-
-    def reset_states(self):
-        self.tp.assign(tf.zeros(self.n_class)) # resets true positives to zero
-        self.predicted_positives.assign(tf.zeros(self.n_class)) # resets predicted positives to zero
-        self.actual_positives.assign(tf.zeros(self.n_class)) # resets actual positives to zero
-        self.n_samples.assign(0)
-        self.sum_fb.assign(0)
-        
 def get_labels_from_generator(generator):
     generator.reset()
     _, y_train = next(generator)
@@ -443,7 +365,7 @@ def predict_on_testset(model, classes, threshold):
     # From https://stackoverflow.com/questions/57516673/how-to-perform-prediction-using-predict-generator-on-unlabeled-test-data-in-kera
     test_generator = test_datagen.flow_from_directory(
             '../data/images/',
-            batch_size = 1,
+            # batch_size = 1, # batch_size does not seem to be important here
             shuffle = False,
             classes = ["test-jpg", "test-jpg-additional"], # subfolders
             class_mode = None, # do not create labels
@@ -558,3 +480,83 @@ def get_class_weights(y_labels, train_generator):
     pickle.dump(weight_dict["weight"], open("pickle/weight_dict.p", "wb"))
     
     return(weight_dict["weight"])
+
+
+class MultiLabelFBeta(Metric):
+    """ From https://towardsdatascience.com/f-beta-score-in-keras-part-iii-28b1721fc442 """
+    def __init__(self, n_class, beta, threshold, average = 'samples', epsilon = 1e-7, name = 'binary_fbeta', **kwargs):
+        
+        # initializing an object of the super class
+        super(MultiLabelFBeta, self).__init__(name=name, **kwargs)
+            
+        # initializing atrributes
+        self.tp = self.add_weight(name='tp', shape=(n_class,), initializer='zeros') # initializing true positives
+        self.actual_positives = self.add_weight(name='ap', shape=(n_class,), initializer='zeros') 
+        self.predicted_positives = self.add_weight(name='pp', shape=(n_class,), initializer='zeros')
+
+        self.n_samples = self.add_weight(name='n_samples', initializer='zeros')
+        self.sum_fb = self.add_weight(name='sum_fb', initializer='zeros')
+
+        # initializing other atrributes that wouldn't be changed for every object of this class
+        self.beta_squared = beta**2
+        self.average = average
+        self.n_class = n_class
+        self.threshold = threshold
+        self.epsilon = epsilon
+
+    def update_state(self, ytrue, ypred, sample_weight=None):
+        # casting ytrue float dtype
+        ytrue = tf.cast(ytrue, tf.float32)
+        
+        # making ypred one hot encoded 
+        ypred = tf.cast(tf.greater_equal(tf.cast(ypred, tf.float32), tf.constant(self.threshold)), tf.float32)
+        
+        if self.average == 'samples': # we are to keep track of only fbeta
+            # calculate true positives, predicted positives and actual positives atrribute along the last axis
+            tp = tf.reduce_sum(ytrue*ypred, axis=-1) 
+            predicted_positives = tf.reduce_sum(ypred, axis=-1)
+            actual_positives = tf.reduce_sum(ytrue, axis=-1)
+            
+            precision = tp/(predicted_positives+self.epsilon) # calculate the precision
+            recall = tp/(actual_positives+self.epsilon) # calculate the recall
+            
+            # calculate the fbeta score
+            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
+            
+            if sample_weight is not None: # if sample weight is available for stand alone usage
+                self.fb = tf.reduce_sum(fb*sample_weight)
+            else:
+                n_rows = tf.reduce_sum(tf.shape(ytrue)*tf.constant([1, 0])) # getting the number of rows in ytrue
+                self.n_samples.assign_add(tf.cast(n_rows, tf.float32)) # updating n_samples
+                self.sum_fb.assign_add(tf.reduce_sum(fb)) # getting the running sum of fb
+                self.fb = self.sum_fb / self.n_samples # getting the running mean of fb
+
+        else:
+            # keep track of true, predicted and actual positives because they are calculated along axis 0
+            self.tp.assign_add(tf.reduce_sum(ytrue*ypred, axis=0)) 
+            self.assign_add(predicted_positives = tf.reduce_sum(ypred, axis=0))
+            self.actual_positives.assign_add(tf.reduce_sum(ytrue, axis=0)) 
+            
+    def result(self):
+        if self.average != 'samples':
+            precision = self.tp/(self.predicted_positives+self.epsilon) # calculate the precision
+            recall = self.tp/(self.actual_positives+self.epsilon) # calculate the recall
+
+            # calculate the fbeta score
+            fb = (1+self.beta_squared)*precision*recall / (self.beta_squared*precision + recall + self.epsilon)
+            if self.average == 'weighted':
+                return tf.reduce_sum(fb*self.actual_positives / tf.reduce_sum(self.actual_positives))
+
+            elif self.average == 'raw':
+                return fb
+            
+            return tf.reduce_mean(fb) # then it is 'macro' averaging 
+    
+        return self.fb # then it is either 'samples' with or without sample weight
+
+    def reset_states(self):
+        self.tp.assign(tf.zeros(self.n_class)) # resets true positives to zero
+        self.predicted_positives.assign(tf.zeros(self.n_class)) # resets predicted positives to zero
+        self.actual_positives.assign(tf.zeros(self.n_class)) # resets actual positives to zero
+        self.n_samples.assign(0)
+        self.sum_fb.assign(0)
