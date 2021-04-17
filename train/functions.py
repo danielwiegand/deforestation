@@ -109,7 +109,9 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     
     if transfer_learning == True:
         preprocessing_func = preprocess_input
-        rescale_factor = 0
+        #!!! HIER EIGENTLICH 0!!
+        rescale_factor = 1./255.
+        #!!!!!!!!!!!!!!!!!!!!!!!
     else:
         preprocessing_func = None
         rescale_factor = 1./255.

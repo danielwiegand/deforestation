@@ -33,6 +33,7 @@ run = wandb.init(project = "deforestation",
                      "data_size": None,
                      "epochs": 100,
                      "patience": 5,
+                     "transfer_learning": True,
                      "early_stop": True,
                      "batch_size": 64,
                      "activation": "elu",
@@ -45,9 +46,9 @@ config = wandb.config
 
 train_set, val_set = train_test_split(y_labels, test_size = 0.2)
 
-train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = True)
+train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
 
-m = create_model(config, UNIQUE_LABELS, transfer_learning = True)
+m = create_model(config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
 
 early_stopping, checkpoint, reduce_lr = create_callbacks(model_name = wandb.run.name, patience = config.patience)
 
