@@ -110,9 +110,11 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
     if transfer_learning == True:
         preprocessing_func = preprocess_input
         rescale_factor = 0
+        target_size = (224, 224)
     else:
         preprocessing_func = None
         rescale_factor = 1./255.
+        target_size = (256, 256)
         
     if augmentation:
     
@@ -141,7 +143,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
         shuffle = shuffle,
         classes = classes,
         class_mode = "categorical",
-        target_size = (224, 224) # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. NASnet mobile: (224, 224). NASnet Large: (331, 331)
+        target_size = target_size # tuple of integers (height, width), default: (256, 256). The dimensions to which all images found will be resized. NASnet mobile: (224, 224). NASnet Large: (331, 331)
         )
     
     return generator
@@ -151,7 +153,7 @@ def generate_generators(train_set, val_set, config, labels, transfer_learning, a
         
     train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = augmentation)
 
-    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, batch_size = 1, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph.
+    valid_generator = create_generator(val_set, IMAGE_PATH_TRAIN, shuffle = False, classes = labels, transfer_learning = transfer_learning, augmentation = False) # Changing batch size for evaluation doesn't really do anything, other than adjusting the memory footprint of the graph.
     # Augmentation is always False for the validation generator.
     
     return train_generator, valid_generator
@@ -170,7 +172,7 @@ def create_model(config, labels, transfer_learning):
             input_shape = (224, 224, 3),
             include_top = False,
             weights = "imagenet",
-            pooling = None
+            pooling = "avg"
         )
         
         base_model.trainable = False
@@ -185,7 +187,6 @@ def create_model(config, labels, transfer_learning):
         
         # Convert features of shape `base_model.output_shape[1:]` to vectors
         # x = GlobalAveragePooling2D()(x)
-        x = Flatten()(x)
         
         x = Dense(50, activation = "relu")(x)
         
@@ -358,10 +359,20 @@ def format_for_submission(df):
     return out
 
 
-def predict_on_testset(model, classes, threshold):
+def predict_on_testset(model, classes, threshold, transfer_learning):
     
-    test_datagen = ImageDataGenerator(rescale = 1./255)
-
+    if transfer_learning == True:
+        preprocessing_func = preprocess_input
+        rescale_factor = 0
+        target_size = (224, 224)
+    else:
+        preprocessing_func = None
+        rescale_factor = 1./255.
+        target_size = (256, 256)
+                
+    test_datagen = ImageDataGenerator(rescale = rescale_factor,
+                                      preprocessing_function = preprocessing_func)
+    
     # From https://stackoverflow.com/questions/57516673/how-to-perform-prediction-using-predict-generator-on-unlabeled-test-data-in-kera
     test_generator = test_datagen.flow_from_directory(
             '../data/images/',
@@ -369,7 +380,7 @@ def predict_on_testset(model, classes, threshold):
             shuffle = False,
             classes = ["test-jpg", "test-jpg-additional"], # subfolders
             class_mode = None, # do not create labels
-            target_size = (256,256))
+            target_size = target_size)
 
     y_test_pred = model.predict(test_generator, verbose = 1)
 

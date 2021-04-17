@@ -31,7 +31,7 @@ run = wandb.init(project = "deforestation",
                      "dense_units": "512",
                      "full_data": True,
                      "data_size": None,
-                     "epochs": 100,
+                     "epochs": 30   ,
                      "patience": 5,
                      "transfer_learning": True,
                      "early_stop": True,
@@ -44,7 +44,7 @@ config = wandb.config
 
 # * CREATE MODEL
 
-train_set, val_set = train_test_split(y_labels, test_size = 0.2)
+train_set, val_set = train_test_split(y_labels[0:100], test_size = 0.2)
 
 train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = config.transfer_learning, augmentation = False)
 
@@ -64,7 +64,7 @@ history = m.fit(train_generator,
                 validation_steps = STEP_SIZE_VALID,
                 epochs = config.epochs,
                 class_weight = None,
-                callbacks = [WandbCallback(), early_stopping, checkpoint, reduce_lr]
+                callbacks = [WandbCallback(), early_stopping] # checkpoint, reduce_lr
                 )
 run.finish()
 
@@ -82,8 +82,8 @@ y_train, y_train_pred, y_val, y_val_pred, best_threshold = evaluate_model(m, his
 
 # Evaluate
 
-submission = predict_on_testset(model = m, classes = train_generator.class_indices, threshold = best_threshold)
+submission = predict_on_testset(model = m, classes = train_generator.class_indices, threshold = best_threshold, transfer_learning = config.transfer_learning)
 
-# submission.to_csv("./submissions/submission.csv")
+submission.to_csv("./submissions/submission.csv")
 
 !kaggle competitions submit -c planet-understanding-the-amazon-from-space -f submissions/submission.csv -m "First submit"
