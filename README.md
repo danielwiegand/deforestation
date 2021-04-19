@@ -12,7 +12,7 @@ The training data consists of 40,479 labeled images of 256x256 pixels. Test data
 
 The training set is labelled for atmospheric conditions and land cover / land use. The following figure shows the available labels:
 
-![Alt text](data/rainforest_chips.jpeg?raw=true "The image labels")
+![Alt text](rainforest_chips.jpeg?raw=true "The image labels")
 
 More information on the data: https://www.kaggle.com/c/planet-understanding-the-amazon-from-space/data
 
