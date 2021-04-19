@@ -22,20 +22,22 @@ weight_dict = pickle.load(open("pickle/weight_dict.p", "rb"))
 
 run = wandb.init(project = "deforestation",
            reinit = True,
-           name = "test_metric",
-           config = {"cnn_layers": 4,
-                     "filter_layout": "32-32-64-64",
-                     "batch_norm": "2-4",
-                     "max_pooling": "2-4",
-                     "dense_layers": 1,
-                     "dense_units": "512",
+           name = "transfer learning #1",
+           config = {"cnn_layers": None,
+                     "filter_layout": None,
+                     "batch_norm": None,
+                     "max_pooling": None,
+                     "dense_layers": None,
+                     "dense_units": None,
                      "full_data": True,
                      "data_size": None,
-                     "epochs": 30   ,
-                     "patience": 5,
-                     "transfer_learning": True,
+                     "epochs": 100,
+                     "patience": 3,
+                     "augmentation": False,
+                     "class_weight": False,
                      "early_stop": True,
-                     "batch_size": 64,
+                     "transfer_learning": True,
+                     "batch_size": 32,
                      "activation": "elu",
                      "optimizer": "adam"})
 
@@ -44,13 +46,18 @@ config = wandb.config
 
 # * CREATE MODEL
 
-train_set, val_set = train_test_split(y_labels[0:100], test_size = 0.2)
+train_set, val_set = train_test_split(y_labels[0:200], test_size = 0.2)
 
 train_generator, valid_generator = generate_generators(train_set, val_set, config, UNIQUE_LABELS, transfer_learning = config.transfer_learning, augmentation = False)
 
-m = create_model(config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
+m, base_model, F2Score = create_model(config, UNIQUE_LABELS, transfer_learning = config.transfer_learning)
 
 early_stopping, checkpoint, reduce_lr = create_callbacks(model_name = wandb.run.name, patience = config.patience)
+
+if config.class_weight = True:
+  class_weight = weight_dict
+else:
+  class_weight = None
 
 
 # * RUN MODEL
@@ -63,7 +70,7 @@ history = m.fit(train_generator,
                 validation_data = valid_generator,
                 validation_steps = STEP_SIZE_VALID,
                 epochs = config.epochs,
-                class_weight = None,
+                class_weight = class_weight,
                 callbacks = [WandbCallback(), early_stopping] # checkpoint, reduce_lr
                 )
 run.finish()
@@ -86,4 +93,4 @@ submission = predict_on_testset(model = m, classes = train_generator.class_indic
 
 submission.to_csv("./submissions/submission.csv")
 
-!kaggle competitions submit -c planet-understanding-the-amazon-from-space -f submissions/submission.csv -m "First submit"
+!kaggle competitions submit -c planet-understanding-the-amazon-from-space -f submissions/submission.csv -m "Test submit"

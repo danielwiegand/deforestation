@@ -217,7 +217,7 @@ def create_model(config, labels, transfer_learning):
     
     m.summary()
     
-    return m
+    return m, base_model, F2Score
 
 
 
