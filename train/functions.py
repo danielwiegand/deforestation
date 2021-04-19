@@ -10,13 +10,10 @@ from PIL import Image
 from sklearn.metrics import (average_precision_score, classification_report,
                              fbeta_score, multilabel_confusion_matrix,
                              precision_recall_curve, precision_score)
-from tensorflow.keras import backend as K
-from tensorflow.keras.applications.nasnet import (NASNetMobile, NASNetLarge,
-                                                  decode_predictions,
-                                                  preprocess_input)
+from tensorflow.keras.applications.nasnet import (NASNetMobile, preprocess_input)
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
-                                     Dense, Dropout, Flatten, MaxPooling2D, GlobalAveragePooling2D)
+                                     Dense, Dropout, Flatten, MaxPooling2D)
 from tensorflow.keras import Model, Input
 from tensorflow.keras.metrics import Metric
 from tensorflow.keras.models import Sequential

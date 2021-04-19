@@ -1,13 +1,9 @@
-import os
 import pickle
 
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from wandb.keras import WandbCallback
 import wandb
-from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model, generate_generators, get_class_weights
+from functions import load_labels, predict_on_testset, create_model, create_callbacks, evaluate_model, generate_generators
 
 
 # * LOAD DATA
@@ -33,6 +29,7 @@ run = wandb.init(project = "deforestation",
                      "data_size": None,
                      "epochs": 100,
                      "patience": 3,
+                     "finetuning": True,
                      "augmentation": False,
                      "class_weight": False,
                      "early_stop": True,
@@ -76,18 +73,34 @@ history = m.fit(train_generator,
 run.finish()
 
 
-# * EVALUATE
+# * FINETUNING
 
-# m.save("models/6000-10epochs")
-# from tensorflow.keras.models import load_model
-# m = load_model("models/6000-10epochs")
+if config.finetuning == True:
+
+  base_model.trainable = True
+  m.summary()
+
+  m.compile(optimizer = Adam(1e-5), # low learning rate 
+            loss = 'binary_crossentropy', 
+            metrics = [F2Score, "AUC"])
+
+  epochs = 10
+
+  history = m.fit(train_generator,
+                  steps_per_epoch = STEP_SIZE_TRAIN,
+                  validation_data = valid_generator,
+                  validation_steps = STEP_SIZE_VALID,
+                  epochs = epochs,
+                  class_weight = class_weight
+                  )
+
+
+# * EVALUATE
 
 y_train, y_train_pred, y_val, y_val_pred, best_threshold = evaluate_model(m, history, train_generator, valid_generator, UNIQUE_LABELS)
 
 
 # * PREDICT
-
-# Evaluate
 
 submission = predict_on_testset(model = m, classes = train_generator.class_indices, threshold = best_threshold, transfer_learning = config.transfer_learning)
 
