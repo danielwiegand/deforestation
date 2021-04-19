@@ -30,14 +30,17 @@ IMAGE_PATH_TEST = "../data/images/test-jpg/"
 # * FUNCTIONS
 
 def show_image(path):
+    """Show a single image from a filepath"""
     img = load_img(path)
     return img
 
 def image_from_array(array):
+    """Show an image from a numpy array"""
     img = Image.fromarray(array.astype('uint8'), 'RGB')
     return img
 
 def show_image_predictions(generator, ypred_bool, reset = False):
+    """Show four images with their predictions"""
     if reset:
         generator.reset()
     for i in range(4):
@@ -52,6 +55,7 @@ def show_image_predictions(generator, ypred_bool, reset = False):
         plt.axis('off')
 
 def load_labels():
+    """Load the image label file and transform it to the desired format"""
     y_labels = pd.read_csv("../data/y_labels/train_v2.csv")
     y_labels["tags"] = y_labels["tags"].apply(lambda x:x.split(" "))
     y_labels["image_name"] = y_labels["image_name"].apply(lambda x: x + ".jpg")
@@ -60,6 +64,7 @@ def load_labels():
     return y_labels, UNIQUE_LABELS
 
 def build_cnn(config, n_labels):
+    """Build a custom CNN"""
     
     m = Sequential([ 
         # Layer 1
@@ -105,7 +110,7 @@ def build_cnn(config, n_labels):
 def create_generator(df, directory, batch_size, shuffle, classes, transfer_learning, augmentation):
     
     if transfer_learning == True:
-        preprocessing_func = preprocess_input
+        preprocessing_func = preprocess_input # the preprocessing for NASnet
         rescale_factor = 0
         target_size = (224, 224)
     else:
@@ -147,6 +152,7 @@ def create_generator(df, directory, batch_size, shuffle, classes, transfer_learn
 
 
 def generate_generators(train_set, val_set, config, labels, transfer_learning, augmentation):
+    """Generate training and validation image data generators"""
         
     train_generator = create_generator(train_set, IMAGE_PATH_TRAIN, batch_size = config.batch_size, shuffle = True, classes = labels, transfer_learning = transfer_learning, augmentation = augmentation)
 
@@ -157,6 +163,7 @@ def generate_generators(train_set, val_set, config, labels, transfer_learning, a
 
 
 def create_model(config, labels, transfer_learning):
+    """Create the model for training"""
     
     if transfer_learning == False:
         
@@ -172,7 +179,7 @@ def create_model(config, labels, transfer_learning):
             pooling = "avg"
         )
         
-        base_model.trainable = False
+        base_model.trainable = False # This is set to true during finetuning
         
         
         # Alternative 1: Functional API
@@ -219,6 +226,7 @@ def create_model(config, labels, transfer_learning):
 
 
 def create_callbacks(model_name, patience):
+    """Create some callbacks for the training"""
 
     early_stopping = EarlyStopping(monitor = "val_loss", 
                                    patience = patience
@@ -242,6 +250,7 @@ def create_callbacks(model_name, patience):
 
 
 def ypred_to_bool(ypred, threshold):
+    """Convert predicted probabilities to boolean values"""
     ypred_bool = (ypred > threshold).astype(int)
     return ypred_bool
 
@@ -303,6 +312,7 @@ def plot_precision_recall_allclasses(y_train, y_pred, labels):
 
 
 def get_labels_from_generator(generator):
+    """Function to extract the 'true' labels from an image data generator"""
     generator.reset()
     _, y_train = next(generator)
     for i in tqdm(range(int(generator.n/generator.batch_size)-1)):
@@ -313,8 +323,7 @@ def get_labels_from_generator(generator):
 
 
 def get_optimal_threshold(true_label, prediction, iterations = 100):
-    
-    """From https://www.kaggle.com/c/planet-understanding-the-amazon-from-space/discussion/32475"""
+    """Get the optimal classification threshold per class. From https://www.kaggle.com/c/planet-understanding-the-amazon-from-space/discussion/32475"""
     
     
     def fbeta(true_label, prediction):
@@ -474,6 +483,7 @@ def evaluate_model(m, history, train_generator, valid_generator, labels):
 
 
 def get_class_weights(y_labels, train_generator):
+    """Function to determine class weights (inverse of class proportions)"""
     # class_weight: Optional dictionary mapping class indices (integers) to a weight (float) value, used for weighting the loss function (during training only).
     all_labels = sum(y_labels.tags.tolist(), [])
     counter = collections.Counter(all_labels)
