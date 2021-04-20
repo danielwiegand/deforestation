@@ -217,7 +217,7 @@ def create_model(config, labels, transfer_learning):
 
     m.compile(optimizer = config.optimizer, 
             loss = 'binary_crossentropy', 
-            metrics = [F2Score, "AUC"])
+            metrics = ["AUC"]) # F2Score
     
     m.summary()
     
