@@ -232,11 +232,11 @@ def create_callbacks(model_name, patience):
                                    patience = patience
                                    )
 
-    checkpoint = ModelCheckpoint(f'models/{model_name}.hdf5', 
+    checkpoint = ModelCheckpoint(f'/content/gdrive/MyDrive/Projekte/deforestation/models/{model_name}', 
                                  monitor = "val_loss",
                                  verbose = 1, 
                                  save_best_only = True, 
-                                 save_weights_only = True)
+                                 save_weights_only = False)
     
     reduce_lr = ReduceLROnPlateau(monitor = "val_loss", 
                                   factor = 0.5, 
