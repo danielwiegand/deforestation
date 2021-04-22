@@ -10,7 +10,7 @@ In this competition, satellite image chips with  have to be labeled with atmosph
 
 The training data consists of 40,479 labeled images of 256x256 pixels. Test data consists of 61,191 images. The images have three color channels.
 
-The training set is labelled for atmospheric conditions and land cover / land use. The following figure shows the available labels:
+The training set is labelled for atmospheric conditions and land cover / land use. The following figure shows some of the available labels:
 
 ![Alt text](rainforest_chips.jpeg?raw=true "The image labels")
 
@@ -18,7 +18,7 @@ More information on the data: https://www.kaggle.com/c/planet-understanding-the-
 
 ## Implementation
 
-The problem can be classified as **multi-label classification**, as each image can have several labels. The appropriate classification algorithm are convolutional neural networks which use binary cross-entropy as loss function. The number of output neurons corresponds to the number of classes which is 17 in this case.
+The problem can be classified as **multi-class and multi-label classification**, as each image can have several labels. The appropriate classification algorithm are convolutional neural networks which use binary cross-entropy as loss function. The number of output neurons corresponds to the number of classes which is 17 in this case.
 
 The tech stack used comprised the Keras and Scikit-Learn libraries. As models, both a custom CNN and transfer learning with a pre-trained NASnet mobile were tried.
 
@@ -31,7 +31,7 @@ The optimal classification threshold is determined per class by means of the `ge
 * The custom CNN with four convolutional layers with some additional Dropout and Batch normalization layers and a large Dense layer before the output layer achieved a F2 score of 0.87125. 
 * Using a pre-trained NASnet mobile CNN with an additional Dense (50 neurons) and Dropout layer before the output layer achieves a score of 0.90685. 
 * Adding class-weights to better adapt to underrepresented classes slightly degrades performance; the same is the case for additional image augmentation during training. 
-* The best result of **0.91585** as public score was achieved with a pre-trained NASnet mobile which was finetuned for additional ten epochs with a very low learning rate of 1e-5. This corresponds to the 374th place of the original composition (top 40%).
+* The best result of **0.91585** as public score was achieved with a pre-trained NASnet mobile which was finetuned for additional ten epochs with a very low learning rate of 1e-5. This corresponds to the 374th place of the original competition (top 40%).
 
 The final model ran for about 4 hours and 20 minutes in a Colab notebook with GPU runtime.
 
