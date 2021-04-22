@@ -24,9 +24,14 @@ The tech stack used comprised the Keras and Scikit-Learn libraries. As models, b
 
 As the classes are highly imbalanced, `accuracy` is not a suitable success metric. Instead, the organisators of the challenge use the F2 score, which is a weighted balance of `precision`and `recall`.
 
+The optimal classification threshold is determined per class by means of the `get_optimal_threshold` function in `functions.py`.
+
 ## Results
 
-The custom CNN with four convolutional layers with some additional Dropout and Batch normalization layers and a large Dense layer before the output layer achieved a F2 score of 0.87125. Using a pre-trained NASnet mobile CNN with an additional Dense (50 neurons) and Dropout layer before the output layer achieves a score of 0.90685. Adding class-weights to better adapt to underrepresented classes slightly degrades performance; the same is the case for additional image augmentation during training. The best result of **0.91585** as public score was achieved with a pre-trained NASnet mobile which was finetuned for additional ten epochs with a very low learning rate of 1e-5. This corresponds to the 374th place of the original composition (top 40%).
+* The custom CNN with four convolutional layers with some additional Dropout and Batch normalization layers and a large Dense layer before the output layer achieved a F2 score of 0.87125. 
+* Using a pre-trained NASnet mobile CNN with an additional Dense (50 neurons) and Dropout layer before the output layer achieves a score of 0.90685. 
+* Adding class-weights to better adapt to underrepresented classes slightly degrades performance; the same is the case for additional image augmentation during training. 
+* The best result of **0.91585** as public score was achieved with a pre-trained NASnet mobile which was finetuned for additional ten epochs with a very low learning rate of 1e-5. This corresponds to the 374th place of the original composition (top 40%).
 
 The final model ran for about 4 hours and 20 minutes in a Colab notebook with GPU runtime.
 
